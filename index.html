@@ -10,11 +10,19 @@
       background-size: calc(100% / 18) 100%;
       background-image: linear-gradient(to right, #e2e8f0 1px, transparent 1px);
     }
+    .table-scroll-container::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb {
+      background-color: #cbd5e1;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans">
 
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
       <div>
         <h1 class="text-lg font-bold text-slate-900 flex items-center gap-2 flex-wrap">
@@ -57,12 +65,24 @@
     <!-- 篩選與 KPI -->
     <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
       <div class="flex flex-wrap items-center gap-3">
+        <!-- 視圖範圍模式：按日 / 按周 / 全月 -->
         <div>
-          <label class="block text-xs font-medium text-slate-500 mb-1" data-i18n="filterDate">選擇日期 (Date)</label>
-          <select id="dateFilter" onchange="renderDashboard()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium bg-white">
+          <label class="block text-xs font-medium text-slate-500 mb-1" data-i18n="viewModeLabel">顯示範圍 (View Mode)</label>
+          <div class="inline-flex rounded-lg border border-slate-300 bg-slate-100 p-0.5 text-xs font-medium">
+            <button type="button" onclick="setViewMode('DAY')" id="mode-DAY" data-i18n="modeDay" class="px-3 py-1 rounded-md bg-white text-blue-600 shadow-sm cursor-pointer transition font-bold">按日 (Day)</button>
+            <button type="button" onclick="setViewMode('WEEK')" id="mode-WEEK" data-i18n="modeWeek" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition">按周 (Week)</button>
+            <button type="button" onclick="setViewMode('MONTH')" id="mode-MONTH" data-i18n="modeMonth" class="px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition">全月 (Month)</button>
+          </div>
+        </div>
+
+        <!-- 日期 / 週次下拉選單 -->
+        <div id="periodSelectWrapper">
+          <label id="periodLabel" class="block text-xs font-medium text-slate-500 mb-1" data-i18n="filterDate">選擇日期 (Date)</label>
+          <select id="dateFilter" onchange="renderDashboard()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium bg-white min-w-[160px]">
             <option value="ALL">全部日期總覽</option>
           </select>
         </div>
+
         <div>
           <label class="block text-xs font-medium text-slate-500 mb-1" data-i18n="filterCompany">公司別 (Company)</label>
           <select id="companyFilter" onchange="renderDashboard()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
@@ -71,6 +91,7 @@
             <option value="MECL">MECL</option>
           </select>
         </div>
+
         <div class="flex items-center pt-5">
           <label class="inline-flex items-center text-xs text-slate-600 cursor-pointer">
             <input id="hideCancelCheckbox" type="checkbox" checked onchange="renderDashboard()" class="rounded border-slate-300 text-blue-600 mr-1.5">
@@ -99,12 +120,12 @@
       </div>
     </div>
 
-    <!-- 甘特圖 -->
+    <!-- 甘特圖（按日期分組，避免跨天重疊） -->
     <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       <div class="px-4 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 class="text-sm font-bold text-slate-800" data-i18n="ganttTitle">📊 司機 / 車輛派車甘特圖 (05:00 – 23:00)</h2>
-          <p class="text-xs text-slate-500" data-i18n="ganttSubtitle">條狀長度依起訖點自動估算車程（機場線約 2.5 小時、廠區/市區短程約 1 小時），滑鼠懸停可看完整分段資訊</p>
+          <h2 class="text-sm font-bold text-slate-800" data-i18n="ganttTitle">📊 每日司機 / 車輛派車甘特圖 (05:00 – 23:00)</h2>
+          <p class="text-xs text-slate-500" data-i18n="ganttSubtitle">依日期獨立分組顯示時間軸，避免跨日行程重疊；條狀長度依起訖點自動估算車程，滑鼠懸停可看完整資訊</p>
         </div>
         <div class="flex items-center gap-3 text-xs">
           <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-blue-500 inline-block"></span> <span data-i18n="legendAirport">機場接送</span></span>
@@ -113,35 +134,36 @@
         </div>
       </div>
 
-      <div class="overflow-x-auto">
-        <div class="min-w-[900px]">
-          <div class="flex border-b border-slate-200 bg-slate-100 text-xs font-medium text-slate-600">
-            <div class="w-48 shrink-0 px-3 py-2 border-r border-slate-200" data-i18n="driverCol">司機 / 車行資訊</div>
-            <div class="flex-1 grid text-center" id="timelineHeader"></div>
+      <div class="overflow-x-auto max-h-[540px] overflow-y-auto table-scroll-container">
+        <div class="min-w-[920px]">
+          <div class="flex border-b border-slate-200 bg-slate-100 text-xs font-medium text-slate-600 sticky top-0 z-20 shadow-sm">
+            <div class="w-48 shrink-0 px-3 py-2.5 border-r border-slate-200 bg-slate-100" data-i18n="driverCol">司機 / 車行資訊</div>
+            <div class="flex-1 grid text-center bg-slate-100" id="timelineHeader"></div>
           </div>
           <div id="ganttBody" class="divide-y divide-slate-200"></div>
         </div>
       </div>
     </section>
 
-    <!-- 明細表 -->
+    <!-- 明細表（固定表頭 Sticky Header） -->
     <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="px-4 py-3 border-b border-slate-200">
+      <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
         <h2 class="text-sm font-bold text-slate-800" data-i18n="tableTitle">📋 行程明細與確認狀態總覽</h2>
+        <span id="tableCountBadge" class="text-xs text-slate-400"></span>
       </div>
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto max-h-[520px] overflow-y-auto table-scroll-container relative">
         <table class="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr class="bg-slate-100 text-slate-600 border-b border-slate-200">
-              <th class="py-2.5 px-3" data-i18n="thDate">日期</th>
-              <th class="py-2.5 px-3" data-i18n="thTime">時間</th>
-              <th class="py-2.5 px-3" data-i18n="thName">乘客 (Name)</th>
-              <th class="py-2.5 px-3" data-i18n="thFlight">航班</th>
-              <th class="py-2.5 px-3" data-i18n="thRoute">路線 (From → To)</th>
-              <th class="py-2.5 px-3 text-center" data-i18n="thPax">人數</th>
-              <th class="py-2.5 px-3" data-i18n="thDriver">司機與車輛</th>
-              <th class="py-2.5 px-3" data-i18n="thCompany">公司 / 專案</th>
-              <th class="py-2.5 px-3" data-i18n="thStatus">狀態</th>
+          <thead class="sticky top-0 z-10 bg-slate-100 text-slate-700 shadow-sm">
+            <tr class="border-b border-slate-200">
+              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thDate">日期</th>
+              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thTime">時間</th>
+              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thName">乘客 (Name)</th>
+              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thFlight">航班</th>
+              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thRoute">路線 (From → To)</th>
+              <th class="py-2.5 px-3 bg-slate-100 text-center whitespace-nowrap" data-i18n="thPax">人數</th>
+              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thDriver">司機與車輛</th>
+              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thCompany">公司 / 專案</th>
+              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thStatus">狀態</th>
             </tr>
           </thead>
           <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
@@ -153,14 +175,21 @@
 
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAIPBILhohL3FfAKFVIu8BWvT5YF2uTs20Qjz4rvNyK-3rit0pgMThp7odyobzbu0/exec";
-    const CACHE_PREFIX = "metc_dispatch_cache_";
+    const CACHE_PREFIX = "metc_dispatch_cache_v2_";
 
     const I18N = {
       zh: {
         title: "🚐 派車行程監控與甘特圖 Dashboard",
         subtitle: "同步 Google Sheet (transportation arrangement) • 自動推算機場/廠區車程區間",
         syncBtn: "🔄 重新同步最新資料",
+        viewModeLabel: "顯示範圍 (View Mode)",
+        modeDay: "按日 (Day)",
+        modeWeek: "按周 (Week)",
+        modeMonth: "全月 (Month)",
         filterDate: "選擇日期 (Date)",
+        filterWeek: "選擇週次 (Week)",
+        filterMonthAll: "顯示範圍",
+        monthAllText: "整月全部日期總覽",
         filterCompany: "公司別 (Company)",
         allCompanies: "全部 (METC / MECL)",
         hideCancel: "隱藏已取消 (CANCEL) 行程",
@@ -168,8 +197,8 @@
         kpiPaxLabel: "總接送人數 (Pax)",
         kpiPendingLabel: "待確認 (非 OK)",
         kpiCostLabel: "預估車資 (THB)",
-        ganttTitle: "📊 司機 / 車輛派車甘特圖 (05:00 – 23:00)",
-        ganttSubtitle: "條狀長度依起訖點自動估算車程（機場線約 2.5 小時、廠區/市區短程約 1 小時），滑鼠懸停可看完整分段資訊",
+        ganttTitle: "📊 每日司機 / 車輛派車甘特圖 (05:00 – 23:00)",
+        ganttSubtitle: "依日期獨立分組顯示時間軸，避免跨日行程重疊；條狀長度依起訖點自動估算車程，滑鼠懸停可看完整資訊",
         legendAirport: "機場接送",
         legendLocal: "廠區/市區接駁",
         legendPending: "待確認 (Check != OK)",
@@ -198,13 +227,21 @@
         tipName: "乘客姓名",
         tipRoute: "行程地點",
         tipDriver: "司機資訊",
-        notFilled: "未填寫"
+        notFilled: "未填寫",
+        showingRows: (n) => `共 ${n} 筆行程`
       },
       en: {
         title: "🚐 Vehicle Dispatch & Gantt Dashboard",
         subtitle: "Synced with Google Sheet (transportation arrangement) • Auto-estimated transit duration",
         syncBtn: "🔄 Sync Latest Data",
+        viewModeLabel: "View Mode",
+        modeDay: "Day",
+        modeWeek: "Week",
+        modeMonth: "Month",
         filterDate: "Select Date",
+        filterWeek: "Select Week",
+        filterMonthAll: "Scope",
+        monthAllText: "Full Month Overview",
         filterCompany: "Company",
         allCompanies: "All (METC / MECL)",
         hideCancel: "Hide Cancelled (CANCEL) Trips",
@@ -212,8 +249,8 @@
         kpiPaxLabel: "Total Passengers (Pax)",
         kpiPendingLabel: "Pending (Not OK)",
         kpiCostLabel: "Est. Cost (THB)",
-        ganttTitle: "📊 Driver / Vehicle Dispatch Gantt Chart (05:00 – 23:00)",
-        ganttSubtitle: "Bar duration auto-estimated by route (~2.5 hrs for Airport, ~1 hr for Local/Plant). Hover for full details.",
+        ganttTitle: "📊 Daily Driver / Vehicle Dispatch Gantt Chart (05:00 – 23:00)",
+        ganttSubtitle: "Grouped by date to prevent cross-day overlap. Duration auto-estimated by route; hover for full details.",
         legendAirport: "Airport Transfer",
         legendLocal: "Plant / Local Shuttle",
         legendPending: "Pending (Check != OK)",
@@ -242,13 +279,21 @@
         tipName: "Passengers",
         tipRoute: "Route",
         tipDriver: "Driver Info",
-        notFilled: "N/A"
+        notFilled: "N/A",
+        showingRows: (n) => `${n} trips`
       },
       th: {
         title: "🚐 แดชบอร์ดติดตามการจองรถและตาราง Gantt",
         subtitle: "ซิงค์ข้อมูลจาก Google Sheet (transportation arrangement) • คำนวณระยะเวลาเดินทางอัตโนมัติ",
         syncBtn: "🔄 ซิงค์ข้อมูลล่าสุด",
+        viewModeLabel: "มุมมอง (View Mode)",
+        modeDay: "รายวัน (Day)",
+        modeWeek: "รายสัปดาห์ (Week)",
+        modeMonth: "ทั้งเดือน (Month)",
         filterDate: "เลือกวันที่ (Date)",
+        filterWeek: "เลือกสัปดาห์ (Week)",
+        filterMonthAll: "ขอบเขต",
+        monthAllText: "แสดงทั้งเดือน",
         filterCompany: "บริษัท (Company)",
         allCompanies: "ทั้งหมด (METC / MECL)",
         hideCancel: "ซ่อนรายการที่ยกเลิก (CANCEL)",
@@ -256,8 +301,8 @@
         kpiPaxLabel: "จำนวนผู้โดยสารรวม (Pax)",
         kpiPendingLabel: "รอยืนยัน (ไม่ใช่ OK)",
         kpiCostLabel: "ค่าเดินทางโดยประมาณ (THB)",
-        ganttTitle: "📊 ตาราง Gantt การจัดรถและคนขับ (05:00 – 23:00)",
-        ganttSubtitle: "ความยาวแถบคำนวณตามเส้นทาง (รับ-ส่งสนามบิน ~2.5 ชม. / ในพื้นที่ ~1 ชม.) วางเมาส์เพื่อดูรายละเอียด",
+        ganttTitle: "📊 ตาราง Gantt การจัดรถและคนขับรายวัน (05:00 – 23:00)",
+        ganttSubtitle: "แยกกลุ่มตามวันที่เพื่อไม่ให้เวลาทับซ้อนกัน วางเมาส์บนแถบเพื่อดูรายละเอียดทั้งหมด",
         legendAirport: "รับ-ส่งสนามบิน",
         legendLocal: "รับ-ส่งโรงงาน/ในพื้นที่",
         legendPending: "รอยืนยัน (Check != OK)",
@@ -286,16 +331,50 @@
         tipName: "ผู้โดยสาร",
         tipRoute: "เส้นทาง",
         tipDriver: "ข้อมูลคนขับ",
-        notFilled: "ไม่ระบุ"
+        notFilled: "ไม่ระบุ",
+        showingRows: (n) => `ทั้งหมด ${n} รายการ`
       }
     };
 
     let currentLang = localStorage.getItem("dispatch_lang") || "zh";
+    let viewMode = "DAY"; // 'DAY' | 'WEEK' | 'MONTH'
     let lastSyncMeta = null;
     let allRecords = [];
     const START_HOUR = 5;
     const END_HOUR = 23;
     const TOTAL_HOURS = END_HOUR - START_HOUR;
+
+    // 解析 "2-Nov-26" 或 "15/11/2026" 為標準 Date 物件
+    function parseSheetDate(dateStr) {
+      if (!dateStr) return null;
+      const months = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
+      const m1 = dateStr.trim().match(/^(\d{1,2})[-/\s]([A-Za-z]{3})[-/\s](\d{2,4})$/);
+      if (m1) {
+        const d = parseInt(m1[1], 10);
+        const mo = months[m1[2].toLowerCase()];
+        let y = parseInt(m1[3], 10);
+        if (y < 100) y += 2000;
+        if (mo !== undefined) return new Date(y, mo, d);
+      }
+      const parsed = new Date(dateStr);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    // 計算該日期所屬的週次區間（週一 ~ 週日）
+    function getWeekKeyAndLabel(dateStr) {
+      const d = parseSheetDate(dateStr);
+      if (!d) return { key: "OTHER", label: dateStr };
+      const dayOfWeek = d.getDay(); // 0=Sun, 1=Mon...
+      const diffToMon = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+      const monday = new Date(d);
+      monday.setDate(d.getDate() + diffToMon);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+
+      const fmt = (dt) => `${dt.getDate()} ${dt.toLocaleString('en-US', { month: 'short' })}`;
+      const key = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+      return { key, label: `${fmt(monday)} – ${fmt(sunday)}` };
+    }
 
     function setLanguage(lang) {
       currentLang = lang;
@@ -311,27 +390,32 @@
 
       ["zh", "en", "th"].forEach(l => {
         const btn = document.getElementById(`lang-${l}`);
-        if (l === lang) {
-          btn.className = "px-2.5 py-1 rounded-md bg-white text-blue-600 shadow-sm cursor-pointer transition font-bold";
-        } else {
-          btn.className = "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition";
-        }
+        btn.className = l === lang
+          ? "px-2.5 py-1 rounded-md bg-white text-blue-600 shadow-sm cursor-pointer transition font-bold"
+          : "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition";
       });
 
       if (lastSyncMeta) {
         const badge = document.getElementById("dataSourceBadge");
-        if (lastSyncMeta.mode === "synced") {
-          badge.textContent = dict.statusSynced(lastSyncMeta.sheet, lastSyncMeta.total);
-        } else if (lastSyncMeta.mode === "cached") {
-          badge.textContent = dict.statusCached(lastSyncMeta.sheet, lastSyncMeta.total);
-        } else if (lastSyncMeta.mode === "error") {
-          badge.textContent = dict.statusError(lastSyncMeta.error);
-        }
+        if (lastSyncMeta.mode === "synced") badge.textContent = dict.statusSynced(lastSyncMeta.sheet, lastSyncMeta.total);
+        else if (lastSyncMeta.mode === "cached") badge.textContent = dict.statusCached(lastSyncMeta.sheet, lastSyncMeta.total);
+        else if (lastSyncMeta.mode === "error") badge.textContent = dict.statusError(lastSyncMeta.error);
       }
 
-      const dateSelect = document.getElementById("dateFilter");
-      const prevDateVal = dateSelect.value;
-      populateDateOptions(prevDateVal);
+      const prevVal = document.getElementById("dateFilter").value;
+      populatePeriodOptions(prevVal);
+      renderDashboard();
+    }
+
+    function setViewMode(mode) {
+      viewMode = mode;
+      ["DAY", "WEEK", "MONTH"].forEach(m => {
+        const btn = document.getElementById(`mode-${m}`);
+        btn.className = m === mode
+          ? "px-3 py-1 rounded-md bg-white text-blue-600 shadow-sm cursor-pointer transition font-bold"
+          : "px-3 py-1 rounded-md text-slate-600 hover:text-slate-900 cursor-pointer transition";
+      });
+      populatePeriodOptions();
       renderDashboard();
     }
 
@@ -341,7 +425,7 @@
       header.innerHTML = "";
       for (let h = START_HOUR; h < END_HOUR; h++) {
         const div = document.createElement("div");
-        div.className = "py-2 border-r border-slate-200/70";
+        div.className = "py-2.5 border-r border-slate-200/70";
         div.textContent = `${String(h).padStart(2, "0")}:00`;
         header.appendChild(div);
       }
@@ -353,7 +437,6 @@
       const dict = I18N[currentLang];
       const cacheKey = CACHE_PREFIX + sheetName;
 
-      // 1. 若有本機快取，先秒開顯示（避免白畫面等待）
       const cachedRaw = localStorage.getItem(cacheKey);
       if (cachedRaw && !forceRefresh) {
         try {
@@ -362,7 +445,7 @@
           lastSyncMeta = { mode: "cached", sheet: sheetName, total: allRecords.length };
           badge.textContent = dict.statusCached(sheetName, allRecords.length);
           badge.className = "text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800";
-          populateDateOptions();
+          populatePeriodOptions();
           renderDashboard();
         } catch (e) {}
       } else {
@@ -370,7 +453,6 @@
         badge.className = "text-xs font-medium px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800";
       }
 
-      // 2. 背景向 Google Apps Script 抓取最新資料
       try {
         const targetUrl = `${APPS_SCRIPT_URL}${APPS_SCRIPT_URL.includes("?") ? "&" : "?"}sheet=${encodeURIComponent(sheetName)}`;
         const res = await fetch(targetUrl);
@@ -384,8 +466,8 @@
         badge.textContent = dict.statusSynced(json.sheet, json.totalRecords);
         badge.className = "text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800";
 
-        const prevDate = document.getElementById("dateFilter").value;
-        populateDateOptions(prevDate);
+        const prevVal = document.getElementById("dateFilter").value;
+        populatePeriodOptions(prevVal);
         renderDashboard();
       } catch (err) {
         lastSyncMeta = { mode: "error", error: err.message };
@@ -394,18 +476,53 @@
       }
     }
 
-    function populateDateOptions(keepValue = null) {
+    function populatePeriodOptions(keepValue = null) {
       const dict = I18N[currentLang];
       const select = document.getElementById("dateFilter");
+      const label = document.getElementById("periodLabel");
       const uniqueDates = [...new Set(allRecords.map(r => r.date).filter(Boolean))];
-      select.innerHTML = `<option value="ALL">${dict.allDatesOpt(uniqueDates.length)}</option>`;
+
+      if (viewMode === "MONTH") {
+        label.textContent = dict.filterMonthAll;
+        select.innerHTML = `<option value="ALL">${dict.monthAllText} (${uniqueDates.length}d)</option>`;
+        select.disabled = true;
+        select.classList.add("bg-slate-100", "text-slate-500");
+        return;
+      }
+
+      select.disabled = false;
+      select.classList.remove("bg-slate-100", "text-slate-500");
+
+      if (viewMode === "WEEK") {
+        label.textContent = dict.filterWeek;
+        const weekMap = new Map();
+        uniqueDates.forEach(d => {
+          const wk = getWeekKeyAndLabel(d);
+          if (!weekMap.has(wk.key)) weekMap.set(wk.key, wk.label);
+        });
+        select.innerHTML = "";
+        let idx = 1;
+        weekMap.forEach((wkLabel, wkKey) => {
+          const opt = document.createElement("option");
+          opt.value = wkKey;
+          opt.textContent = `W${idx++} (${wkLabel})`;
+          select.appendChild(opt);
+        });
+        if (keepValue && weekMap.has(keepValue)) select.value = keepValue;
+        return;
+      }
+
+      // viewMode === "DAY"
+      label.textContent = dict.filterDate;
+      select.innerHTML = "";
       uniqueDates.forEach(d => {
+        const sample = allRecords.find(r => r.date === d);
         const opt = document.createElement("option");
         opt.value = d;
-        opt.textContent = d;
+        opt.textContent = sample && sample.day ? `${d} (${sample.day})` : d;
         select.appendChild(opt);
       });
-      if (keepValue && (keepValue === "ALL" || uniqueDates.includes(keepValue))) {
+      if (keepValue && uniqueDates.includes(keepValue)) {
         select.value = keepValue;
       } else if (uniqueDates.length > 0) {
         select.value = uniqueDates[0];
@@ -432,18 +549,24 @@
       const nameSep = currentLang === "en" ? ", " : "、";
 
       const line1 = `${dict.tipDate}：${trip.date} ${trip.pickupTime}${trip.day ? sep + trip.day : ""}`;
-      const cleanName = (trip.name || dict.notFilled).replace(/\r?\n+/g, nameSep).trim();
+      const cleanName = (trip.name || dict.notFilled).replace(/?
++/g, nameSep).trim();
       const line2 = `${dict.tipName}：${cleanName}`;
 
-      const fromParts = (trip.from || "").split(/\r?\n+/).map(s => s.trim()).filter(Boolean);
-      const toParts = (trip.to || "").split(/\r?\n+/).map(s => s.trim()).filter(Boolean);
+      const fromParts = (trip.from || "").split(/?
++/).map(s => s.trim()).filter(Boolean);
+      const toParts = (trip.to || "").split(/?
++/).map(s => s.trim()).filter(Boolean);
       const routeStr = [...fromParts, ...toParts].join(" > ");
       const line3 = `${dict.tipRoute}：${routeStr || dict.notFilled}`;
 
       const info = trip.driverInfo || "";
-      const plateMatch = info.match(/License plate:\s*([^\n\r]+)/i);
-      const telMatch = info.match(/Tel:\s*([^\n\r]+)/i);
-      const driverMatch = info.match(/Driver:\s*([^\n\r(Tel)]+)/i);
+      const plateMatch = info.match(/License plate:\s*([^
+]+)/i);
+      const telMatch = info.match(/Tel:\s*([^
+]+)/i);
+      const driverMatch = info.match(/Driver:\s*([^
+(Tel)]+)/i);
 
       const plate = plateMatch ? plateMatch[1].trim() : "";
       const tel = telMatch ? telMatch[1].trim() : "";
@@ -451,21 +574,41 @@
 
       let driverSummary = [plate, tel, driver].filter(Boolean).join(sep);
       if (!driverSummary) {
-        driverSummary = info.replace(/\r?\n+/g, sep).trim() || dict.unassigned;
+        driverSummary = info.replace(/?
++/g, sep).trim() || dict.unassigned;
       }
       const line4 = `${dict.tipDriver}：${driverSummary}`;
 
-      return `${line1}\n${line2}\n${line3}\n${line4}`;
+      return `${line1}
+${line2}
+${line3}
+${line4}`;
+    }
+
+    // 自動從欄位或專案名稱補抓公司別（若原欄位空白，嘗試從文字推斷 METC / MECL）
+    function resolveCompany(r) {
+      const rawComp = (r.company || "").trim();
+      if (rawComp) return rawComp;
+      const combined = `${r.project || ""} ${r.from || ""} ${r.to || ""}`.toUpperCase();
+      if (combined.includes("MECL")) return "MECL";
+      if (combined.includes("METC") || combined.includes("MEC 1") || combined.includes("MEC1") || combined.includes("METC2")) return "METC";
+      return "";
     }
 
     function renderDashboard() {
-      const selectedDate = document.getElementById("dateFilter").value;
+      const dict = I18N[currentLang];
+      const selectedPeriod = document.getElementById("dateFilter").value;
       const selectedCompany = document.getElementById("companyFilter").value;
       const hideCancel = document.getElementById("hideCancelCheckbox").checked;
 
       const filtered = allRecords.filter(r => {
-        if (selectedDate !== "ALL" && r.date !== selectedDate) return false;
-        if (selectedCompany !== "ALL" && r.company !== selectedCompany) return false;
+        if (viewMode === "DAY" && selectedPeriod && r.date !== selectedPeriod) return false;
+        if (viewMode === "WEEK" && selectedPeriod) {
+          const wk = getWeekKeyAndLabel(r.date);
+          if (wk.key !== selectedPeriod) return false;
+        }
+        const comp = resolveCompany(r);
+        if (selectedCompany !== "ALL" && comp.toUpperCase() !== selectedCompany) return false;
         if (hideCancel && r.isCancelled) return false;
         return true;
       });
@@ -475,12 +618,14 @@
       document.getElementById("kpiPax").textContent = validTrips.reduce((sum, r) => sum + (r.pax || 0), 0);
       document.getElementById("kpiPending").textContent = validTrips.filter(r => (r.check || "").toUpperCase() !== "OK").length;
       document.getElementById("kpiCost").textContent = validTrips.reduce((sum, r) => sum + (r.cost || 0), 0).toLocaleString();
+      document.getElementById("tableCountBadge").textContent = dict.showingRows(filtered.length);
 
-      renderGantt(filtered);
+      renderGanttByDate(filtered);
       renderTable(filtered);
     }
 
-    function renderGantt(records) {
+    // 依「日期」分組渲染甘特圖，確保每一天擁有獨立的時間軸，不會把不同日期擠在一起
+    function renderGanttByDate(records) {
       const dict = I18N[currentLang];
       const ganttBody = document.getElementById("ganttBody");
       ganttBody.innerHTML = "";
@@ -490,67 +635,89 @@
         return;
       }
 
-      const drivers = [...new Set(records.map(r => r.driverName || dict.unassigned))];
+      const uniqueDates = [...new Set(records.map(r => r.date || "未標註日期"))];
 
-      drivers.forEach(driver => {
-        const driverTrips = records.filter(r => (r.driverName || dict.unassigned) === driver);
-        const row = document.createElement("div");
-        row.className = "flex items-stretch hover:bg-slate-50/80 transition";
+      uniqueDates.forEach(dateStr => {
+        const dayRecords = records.filter(r => (r.date || "未標註日期") === dateStr);
+        const dayLabel = dayRecords[0]?.day ? ` (${dayRecords[0].day})` : "";
 
-        const labelCell = document.createElement("div");
-        labelCell.className = "w-48 shrink-0 px-3 py-3 border-r border-slate-200 flex flex-col justify-center";
-        labelCell.innerHTML = `
-          <div class="text-xs font-bold text-slate-800 truncate" title="${driver}">${driver}</div>
-          <div class="text-[11px] text-slate-400">${dict.tripCount(driverTrips.length)}</div>
+        // 日期分隔標題列（在「按周」或「全月」模式下特別清楚）
+        const dateHeader = document.createElement("div");
+        dateHeader.className = "bg-slate-50 px-3 py-1.5 border-b border-slate-200 flex items-center justify-between text-xs font-bold text-slate-700";
+        dateHeader.innerHTML = `
+          <span>📅 ${dateStr}${dayLabel}</span>
+          <span class="text-[11px] font-normal text-slate-500">${dict.tripCount(dayRecords.length)}</span>
         `;
+        ganttBody.appendChild(dateHeader);
 
-        const trackCell = document.createElement("div");
-        trackCell.className = "flex-1 relative py-2 gantt-grid min-h-[56px] flex flex-col justify-center gap-1.5";
+        const drivers = [...new Set(dayRecords.map(r => r.driverName || dict.unassigned))];
 
-        driverTrips.forEach(trip => {
-          const startDec = timeToDecimalHours(trip.pickupTime);
-          if (startDec === null) return;
+        drivers.forEach(driver => {
+          const driverTrips = dayRecords.filter(r => (r.driverName || dict.unassigned) === driver);
+          const row = document.createElement("div");
+          row.className = "flex items-stretch hover:bg-slate-50/80 transition";
 
-          const duration = estimateDurationHours(trip.from, trip.to);
-          const clampedStart = Math.max(START_HOUR, Math.min(END_HOUR - 0.5, startDec));
-          const leftPct = ((clampedStart - START_HOUR) / TOTAL_HOURS) * 100;
-          const widthPct = Math.min(100 - leftPct, (duration / TOTAL_HOURS) * 100);
+          const labelCell = document.createElement("div");
+          labelCell.className = "w-48 shrink-0 px-3 py-2.5 border-r border-slate-200 flex flex-col justify-center";
+          labelCell.innerHTML = `
+            <div class="text-xs font-bold text-slate-800 truncate" title="${driver}">${driver}</div>
+            <div class="text-[11px] text-slate-400">${dict.tripCount(driverTrips.length)}</div>
+          `;
 
-          const isAirport = duration >= 2;
-          const isOk = (trip.check || "").toUpperCase() === "OK";
-          let barColor = isAirport ? "bg-blue-500 border-blue-600" : "bg-emerald-500 border-emerald-600";
-          if (!isOk) barColor = "bg-amber-500 border-amber-600";
-          if (trip.isCancelled) barColor = "bg-slate-400 border-slate-500 line-through opacity-60";
+          const trackCell = document.createElement("div");
+          trackCell.className = "flex-1 relative py-2 gantt-grid min-h-[48px] flex flex-col justify-center gap-1.5";
 
-          const bar = document.createElement("div");
-          bar.style.left = `${leftPct}%`;
-          bar.style.width = `${Math.max(widthPct, 6)}%`;
-          bar.className = `relative h-7 rounded-md border text-white text-[11px] px-2 flex items-center shadow-sm cursor-pointer overflow-hidden whitespace-nowrap ${barColor}`;
-          bar.title = formatTooltip(trip);
-          bar.innerHTML = `<span class="font-bold mr-1">${trip.pickupTime}</span> <span class="truncate">${trip.from} → ${trip.to} (${dict.paxUnit(trip.pax)})</span>`;
+          driverTrips.forEach(trip => {
+            const startDec = timeToDecimalHours(trip.pickupTime);
+            if (startDec === null) return;
 
-          trackCell.appendChild(bar);
+            const duration = estimateDurationHours(trip.from, trip.to);
+            const clampedStart = Math.max(START_HOUR, Math.min(END_HOUR - 0.5, startDec));
+            const leftPct = ((clampedStart - START_HOUR) / TOTAL_HOURS) * 100;
+            const widthPct = Math.min(100 - leftPct, (duration / TOTAL_HOURS) * 100);
+
+            const isAirport = duration >= 2;
+            const isOk = (trip.check || "").toUpperCase() === "OK";
+            let barColor = isAirport ? "bg-blue-500 border-blue-600" : "bg-emerald-500 border-emerald-600";
+            if (!isOk) barColor = "bg-amber-500 border-amber-600";
+            if (trip.isCancelled) barColor = "bg-slate-400 border-slate-500 line-through opacity-60";
+
+            const bar = document.createElement("div");
+            bar.style.left = `${leftPct}%`;
+            bar.style.width = `${Math.max(widthPct, 6)}%`;
+            bar.className = `relative h-7 rounded-md border text-white text-[11px] px-2 flex items-center shadow-sm cursor-pointer overflow-hidden whitespace-nowrap ${barColor}`;
+            bar.title = formatTooltip(trip);
+            bar.innerHTML = `<span class="font-bold mr-1">${trip.pickupTime}</span> <span class="truncate">${trip.from} → ${trip.to} (${dict.paxUnit(trip.pax)})</span>`;
+
+            trackCell.appendChild(bar);
+          });
+
+          row.appendChild(labelCell);
+          row.appendChild(trackCell);
+          ganttBody.appendChild(row);
         });
-
-        row.appendChild(labelCell);
-        row.appendChild(trackCell);
-        ganttBody.appendChild(row);
       });
     }
 
     function renderTable(records) {
       const dict = I18N[currentLang];
       const tbody = document.getElementById("tableBody");
-      tbody.innerHTML = records.map(r => `
+      tbody.innerHTML = records.map(r => {
+        const comp = resolveCompany(r);
+        const proj = (r.project || "").trim();
+        return `
         <tr class="${r.isCancelled ? "bg-slate-50 text-slate-400 line-through" : "hover:bg-slate-50"}">
           <td class="py-2.5 px-3 whitespace-nowrap font-medium">${r.date} <span class="text-slate-400">${r.day}</span></td>
-          <td class="py-2.5 px-3 font-bold text-blue-600">${r.pickupTime}</td>
+          <td class="py-2.5 px-3 font-bold text-blue-600 whitespace-nowrap">${r.pickupTime}</td>
           <td class="py-2.5 px-3 max-w-[160px] truncate" title="${r.name}">${r.name}</td>
           <td class="py-2.5 px-3 whitespace-nowrap">${r.flight || "-"}</td>
           <td class="py-2.5 px-3">${r.from} <span class="text-slate-400">→</span> ${r.to}</td>
           <td class="py-2.5 px-3 text-center">${r.pax}</td>
           <td class="py-2.5 px-3 max-w-[180px] truncate" title="${r.driverInfo}">${r.driverInfo || "-"}</td>
-          <td class="py-2.5 px-3 whitespace-nowrap"><span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">${r.company}</span> ${r.project}</td>
+          <td class="py-2.5 px-3 whitespace-nowrap">
+            ${comp ? `<span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-medium">${comp}</span>` : ""}
+            ${proj ? `<span class="text-slate-700 ml-1">${proj}</span>` : (!comp ? `<span class="text-slate-400">-</span>` : "")}
+          </td>
           <td class="py-2.5 px-3 whitespace-nowrap">
             ${r.isCancelled 
               ? `<span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">CANCEL</span>`
@@ -560,7 +727,7 @@
             }
           </td>
         </tr>
-      `).join("");
+      `}).join("");
     }
 
     initTimelineHeader();
