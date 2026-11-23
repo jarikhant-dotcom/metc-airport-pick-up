@@ -44,7 +44,7 @@
           <option value="Apr 2026">Apr 2026</option>
         </select>
 
-        <button onclick="fetchLiveSheet()" data-i18n="syncBtn"
+        <button onclick="fetchLiveSheet(true)" data-i18n="syncBtn"
           class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3.5 py-1.5 rounded-lg transition cursor-pointer">
           🔄 重新同步最新資料
         </button>
@@ -153,8 +153,8 @@
 
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAIPBILhohL3FfAKFVIu8BWvT5YF2uTs20Qjz4rvNyK-3rit0pgMThp7odyobzbu0/exec";
+    const CACHE_PREFIX = "metc_dispatch_cache_";
 
-    // 三語字典（繁體中文 / English / ภาษาไทย）
     const I18N = {
       zh: {
         title: "🚐 派車行程監控與甘特圖 Dashboard",
@@ -189,8 +189,9 @@
         paxUnit: (n) => `${n}人`,
         unassigned: "未指派司機",
         noData: "此篩選條件下無派車資料",
-        statusLoading: "載入即時資料中...",
+        statusLoading: "背景更新最新資料中...",
         statusSynced: (sheet, total) => `已同步：${sheet} (${total} 筆)`,
+        statusCached: (sheet, total) => `快取顯示：${sheet} (${total} 筆，背景同步中...)`,
         statusError: (msg) => `連線失敗：${msg}`,
         pendingBadge: "待確認",
         tipDate: "日期時間",
@@ -234,6 +235,7 @@
         noData: "No dispatch records match the current filter",
         statusLoading: "Syncing live data...",
         statusSynced: (sheet, total) => `Synced: ${sheet} (${total} records)`,
+        statusCached: (sheet, total) => `Cached: ${sheet} (${total} records, updating...)`,
         statusError: (msg) => `Sync Failed: ${msg}`,
         pendingBadge: "Pending",
         tipDate: "Date & Time",
@@ -277,6 +279,7 @@
         noData: "ไม่พบข้อมูลการจองรถตามเงื่อนไขที่เลือก",
         statusLoading: "กำลังโหลดข้อมูลล่าสุด...",
         statusSynced: (sheet, total) => `ซิงค์แล้ว: ${sheet} (${total} รายการ)`,
+        statusCached: (sheet, total) => `ข้อมูลแคช: ${sheet} (${total} รายการ, กำลังอัปเดต...)`,
         statusError: (msg) => `เชื่อมต่อล้มเหลว: ${msg}`,
         pendingBadge: "รอยืนยัน",
         tipDate: "วันและเวลา",
@@ -299,7 +302,6 @@
       localStorage.setItem("dispatch_lang", lang);
       const dict = I18N[lang];
 
-      // 更新靜態文字
       document.querySelectorAll("[data-i18n]").forEach(el => {
         const key = el.getAttribute("data-i18n");
         if (dict[key] && typeof dict[key] === "string") {
@@ -307,7 +309,6 @@
         }
       });
 
-      // 更新語言按鈕高亮樣式
       ["zh", "en", "th"].forEach(l => {
         const btn = document.getElementById(`lang-${l}`);
         if (l === lang) {
@@ -317,17 +318,17 @@
         }
       });
 
-      // 更新同步狀態標籤語言
       if (lastSyncMeta) {
         const badge = document.getElementById("dataSourceBadge");
-        if (lastSyncMeta.ok) {
+        if (lastSyncMeta.mode === "synced") {
           badge.textContent = dict.statusSynced(lastSyncMeta.sheet, lastSyncMeta.total);
-        } else {
+        } else if (lastSyncMeta.mode === "cached") {
+          badge.textContent = dict.statusCached(lastSyncMeta.sheet, lastSyncMeta.total);
+        } else if (lastSyncMeta.mode === "error") {
           badge.textContent = dict.statusError(lastSyncMeta.error);
         }
       }
 
-      // 更新日期下拉選單第一項與重繪畫面
       const dateSelect = document.getElementById("dateFilter");
       const prevDateVal = dateSelect.value;
       populateDateOptions(prevDateVal);
@@ -346,14 +347,30 @@
       }
     }
 
-    async function fetchLiveSheet() {
+    async function fetchLiveSheet(forceRefresh = false) {
       const sheetName = document.getElementById("sheetSelect").value;
       const badge = document.getElementById("dataSourceBadge");
       const dict = I18N[currentLang];
+      const cacheKey = CACHE_PREFIX + sheetName;
 
-      badge.textContent = dict.statusLoading;
-      badge.className = "text-xs font-medium px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800";
+      // 1. 若有本機快取，先秒開顯示（避免白畫面等待）
+      const cachedRaw = localStorage.getItem(cacheKey);
+      if (cachedRaw && !forceRefresh) {
+        try {
+          const cached = JSON.parse(cachedRaw);
+          allRecords = cached.records || [];
+          lastSyncMeta = { mode: "cached", sheet: sheetName, total: allRecords.length };
+          badge.textContent = dict.statusCached(sheetName, allRecords.length);
+          badge.className = "text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800";
+          populateDateOptions();
+          renderDashboard();
+        } catch (e) {}
+      } else {
+        badge.textContent = dict.statusLoading;
+        badge.className = "text-xs font-medium px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800";
+      }
 
+      // 2. 背景向 Google Apps Script 抓取最新資料
       try {
         const targetUrl = `${APPS_SCRIPT_URL}${APPS_SCRIPT_URL.includes("?") ? "&" : "?"}sheet=${encodeURIComponent(sheetName)}`;
         const res = await fetch(targetUrl);
@@ -361,13 +378,17 @@
         if (json.error) throw new Error(json.error);
 
         allRecords = json.records || [];
-        lastSyncMeta = { ok: true, sheet: json.sheet, total: json.totalRecords };
+        localStorage.setItem(cacheKey, JSON.stringify({ records: allRecords, savedAt: Date.now() }));
+
+        lastSyncMeta = { mode: "synced", sheet: json.sheet, total: json.totalRecords };
         badge.textContent = dict.statusSynced(json.sheet, json.totalRecords);
         badge.className = "text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800";
-        populateDateOptions();
+
+        const prevDate = document.getElementById("dateFilter").value;
+        populateDateOptions(prevDate);
         renderDashboard();
       } catch (err) {
-        lastSyncMeta = { ok: false, error: err.message };
+        lastSyncMeta = { mode: "error", error: err.message };
         badge.textContent = dict.statusError(err.message);
         badge.className = "text-xs font-medium px-2.5 py-0.5 rounded-full bg-red-100 text-red-800";
       }
@@ -410,20 +431,15 @@
       const sep = currentLang === "en" ? ", " : "，";
       const nameSep = currentLang === "en" ? ", " : "、";
 
-      // 第一行：日期時間，星期
       const line1 = `${dict.tipDate}：${trip.date} ${trip.pickupTime}${trip.day ? sep + trip.day : ""}`;
-
-      // 第二行：乘客姓名
       const cleanName = (trip.name || dict.notFilled).replace(/\r?\n+/g, nameSep).trim();
       const line2 = `${dict.tipName}：${cleanName}`;
 
-      // 第三行：行程地點（起始 > 途徑 > 終點）
       const fromParts = (trip.from || "").split(/\r?\n+/).map(s => s.trim()).filter(Boolean);
       const toParts = (trip.to || "").split(/\r?\n+/).map(s => s.trim()).filter(Boolean);
       const routeStr = [...fromParts, ...toParts].join(" > ");
       const line3 = `${dict.tipRoute}：${routeStr || dict.notFilled}`;
 
-      // 第四行：司機資訊（車牌，電話，司機）
       const info = trip.driverInfo || "";
       const plateMatch = info.match(/License plate:\s*([^\n\r]+)/i);
       const telMatch = info.match(/Tel:\s*([^\n\r]+)/i);
