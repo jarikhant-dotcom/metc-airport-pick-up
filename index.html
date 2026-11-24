@@ -25,11 +25,11 @@
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
       <div class="shrink-0">
-        <h1 class="text-lg font-bold text-slate-900 flex items-center gap-2 flex-wrap">
+        <h1 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 flex-wrap">
           <span data-i18n="title">🚐 派車行程監控與甘特圖 Dashboard</span>
           <span id="dataSourceBadge" class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">準備連線...</span>
         </h1>
-        <p class="text-xs text-slate-500" data-i18n="subtitle">同步 Google Sheet (transportation arrangement) • 自動推算機場/廠區車程區間</p>
+        <p class="text-xs text-slate-500 hidden sm:block" data-i18n="subtitle">同步 Google Sheet (transportation arrangement) • 自動推算機場/廠區車程區間</p>
       </div>
 
       <!-- 即時萬用搜尋框（乘客 / 司機 / 車牌 / 航班） -->
@@ -72,18 +72,18 @@
         </select>
 
         <button onclick="fetchLiveSheet(true)" data-i18n="syncBtn"
-          class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3.5 py-1.5 rounded-lg transition cursor-pointer">
+          class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition cursor-pointer">
           🔄 重新同步最新資料
         </button>
       </div>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+  <main class="max-w-7xl mx-auto px-4 py-4 sm:py-6 space-y-5 sm:space-y-6">
 
     <!-- 篩選與 KPI -->
     <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
-      <div class="flex flex-wrap items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
         <!-- 視圖範圍模式：按日 / 按周 / 全月 -->
         <div>
           <label class="block text-xs font-medium text-slate-500 mb-1" data-i18n="viewModeLabel">顯示範圍 (View Mode)</label>
@@ -97,7 +97,7 @@
         <!-- 日期 / 週次下拉選單 -->
         <div id="periodSelectWrapper">
           <label id="periodLabel" class="block text-xs font-medium text-slate-500 mb-1" data-i18n="filterDate">選擇日期 (Date)</label>
-          <select id="dateFilter" onchange="renderDashboard()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium bg-white min-w-[160px]">
+          <select id="dateFilter" onchange="renderDashboard()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium bg-white min-w-[150px] sm:min-w-[160px]">
             <option value="ALL">全部日期總覽</option>
           </select>
         </div>
@@ -111,7 +111,7 @@
           </select>
         </div>
 
-        <div class="flex items-center pt-5">
+        <div class="flex items-center pt-1 sm:pt-5">
           <label class="inline-flex items-center text-xs text-slate-600 cursor-pointer">
             <input id="hideCancelCheckbox" type="checkbox" checked onchange="renderDashboard()" class="rounded border-slate-300 text-blue-600 mr-1.5">
             <span data-i18n="hideCancel">隱藏已取消 (CANCEL) 行程</span>
@@ -119,76 +119,92 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-        <div class="bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-center w-full lg:w-auto">
+        <div class="bg-slate-50 px-3 sm:px-4 py-2 rounded-lg border border-slate-200">
           <div class="text-xs text-slate-500" data-i18n="kpiTripsLabel">有效派車趟次</div>
           <div id="kpiTrips" class="text-lg font-bold text-slate-900">0</div>
         </div>
-        <div class="bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
+        <div class="bg-slate-50 px-3 sm:px-4 py-2 rounded-lg border border-slate-200">
           <div class="text-xs text-slate-500" data-i18n="kpiPaxLabel">總接送人數 (Pax)</div>
           <div id="kpiPax" class="text-lg font-bold text-blue-600">0</div>
         </div>
-        <div class="bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
+        <div class="bg-slate-50 px-3 sm:px-4 py-2 rounded-lg border border-slate-200">
           <div class="text-xs text-slate-500" data-i18n="kpiPendingLabel">待確認 (非 OK)</div>
           <div id="kpiPending" class="text-lg font-bold text-amber-600">0</div>
         </div>
-        <div class="bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
+        <div class="bg-slate-50 px-3 sm:px-4 py-2 rounded-lg border border-slate-200">
           <div class="text-xs text-slate-500" data-i18n="kpiCostLabel">預估車資 (THB)</div>
           <div id="kpiCost" class="text-lg font-bold text-emerald-600">0</div>
         </div>
       </div>
     </div>
 
-    <!-- 甘特圖（按日期分組，避免跨天重疊） -->
-    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="px-4 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 class="text-sm font-bold text-slate-800" data-i18n="ganttTitle">📊 每日司機 / 車輛派車甘特圖 (05:00 – 23:00)</h2>
-          <p class="text-xs text-slate-500" data-i18n="ganttSubtitle">依日期獨立分組顯示時間軸，避免跨日行程重疊；條狀長度依起訖點自動估算車程，滑鼠懸停可看完整資訊</p>
-        </div>
-        <div class="flex items-center gap-3 text-xs">
-          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-blue-500 inline-block"></span> <span data-i18n="legendAirport">機場接送</span></span>
-          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span> <span data-i18n="legendLocal">廠區/市區接駁</span></span>
-          <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-500 inline-block"></span> <span data-i18n="legendPending">待確認 (Check != OK)</span></span>
-        </div>
+    <!-- ===================================================================== -->
+    <!-- 手機版專屬視圖（螢幕寬度 < 768px 自動顯示）：垂直派車卡片 + 撥號 + 複製 -->
+    <!-- ===================================================================== -->
+    <section class="md:hidden space-y-3">
+      <div class="flex items-center justify-between px-1">
+        <h2 class="text-sm font-bold text-slate-800" data-i18n="mobileListTitle">📱 派車任務卡片清單</h2>
+        <span id="mobileCountBadge" class="text-xs text-slate-500 font-medium"></span>
       </div>
+      <div id="mobileCardsContainer" class="space-y-4"></div>
+    </section>
 
-      <div class="overflow-x-auto max-h-[540px] overflow-y-auto table-scroll-container">
-        <div class="min-w-[920px]">
-          <div class="flex border-b border-slate-200 bg-slate-100 text-xs font-medium text-slate-600 sticky top-0 z-20 shadow-sm">
-            <div class="w-48 shrink-0 px-3 py-2.5 border-r border-slate-200 bg-slate-100" data-i18n="driverCol">司機 / 車行資訊</div>
-            <div class="flex-1 grid text-center bg-slate-100" id="timelineHeader"></div>
+    <!-- ===================================================================== -->
+    <!-- 電腦版專屬視圖（螢幕寬度 >= 768px 顯示）：甘特圖 + 完整明細表           -->
+    <!-- ===================================================================== -->
+    <div class="hidden md:block space-y-6">
+      <!-- 甘特圖（按日期分組，避免跨天重疊） -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-sm font-bold text-slate-800" data-i18n="ganttTitle">📊 每日司機 / 車輛派車甘特圖 (05:00 – 23:00)</h2>
+            <p class="text-xs text-slate-500" data-i18n="ganttSubtitle">依日期獨立分組顯示時間軸，避免跨日行程重疊；條狀長度依起訖點自動估算車程，滑鼠懸停可看完整資訊</p>
           </div>
-          <div id="ganttBody" class="divide-y divide-slate-200"></div>
+          <div class="flex items-center gap-3 text-xs">
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-blue-500 inline-block"></span> <span data-i18n="legendAirport">機場接送</span></span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span> <span data-i18n="legendLocal">廠區/市區接駁</span></span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-500 inline-block"></span> <span data-i18n="legendPending">待確認 (Check != OK)</span></span>
+          </div>
         </div>
-      </div>
-    </section>
 
-    <!-- 明細表（固定表頭 Sticky Header） -->
-    <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-        <h2 class="text-sm font-bold text-slate-800" data-i18n="tableTitle">📋 行程明細與確認狀態總覽</h2>
-        <span id="tableCountBadge" class="text-xs text-slate-400"></span>
-      </div>
-      <div class="overflow-x-auto max-h-[520px] overflow-y-auto table-scroll-container relative">
-        <table class="w-full text-left border-collapse text-xs">
-          <thead class="sticky top-0 z-10 bg-slate-100 text-slate-700 shadow-sm">
-            <tr class="border-b border-slate-200">
-              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thDate">日期</th>
-              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thTime">時間</th>
-              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thName">乘客 (Name)</th>
-              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thFlight">航班</th>
-              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thRoute">路線 (From → To)</th>
-              <th class="py-2.5 px-3 bg-slate-100 text-center whitespace-nowrap" data-i18n="thPax">人數</th>
-              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thDriver">司機與車輛</th>
-              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thCompany">公司 / 專案</th>
-              <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thStatus">狀態</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
-        </table>
-      </div>
-    </section>
+        <div class="overflow-x-auto max-h-[540px] overflow-y-auto table-scroll-container">
+          <div class="min-w-[920px]">
+            <div class="flex border-b border-slate-200 bg-slate-100 text-xs font-medium text-slate-600 sticky top-0 z-20 shadow-sm">
+              <div class="w-48 shrink-0 px-3 py-2.5 border-r border-slate-200 bg-slate-100" data-i18n="driverCol">司機 / 車行資訊</div>
+              <div class="flex-1 grid text-center bg-slate-100" id="timelineHeader"></div>
+            </div>
+            <div id="ganttBody" class="divide-y divide-slate-200"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 明細表（固定表頭 Sticky Header） -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+          <h2 class="text-sm font-bold text-slate-800" data-i18n="tableTitle">📋 行程明細與確認狀態總覽</h2>
+          <span id="tableCountBadge" class="text-xs text-slate-400"></span>
+        </div>
+        <div class="overflow-x-auto max-h-[520px] overflow-y-auto table-scroll-container relative">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="sticky top-0 z-10 bg-slate-100 text-slate-700 shadow-sm">
+              <tr class="border-b border-slate-200">
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thDate">日期</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thTime">時間</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thName">乘客 (Name)</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thFlight">航班</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thRoute">路線 (From → To)</th>
+                <th class="py-2.5 px-3 bg-slate-100 text-center whitespace-nowrap" data-i18n="thPax">人數</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thDriver">司機與車輛</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thCompany">公司 / 專案</th>
+                <th class="py-2.5 px-3 bg-slate-100 whitespace-nowrap" data-i18n="thStatus">狀態</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
 
   </main>
 
@@ -218,6 +234,12 @@
         kpiPaxLabel: "總接送人數 (Pax)",
         kpiPendingLabel: "待確認 (非 OK)",
         kpiCostLabel: "預估車資 (THB)",
+        mobileListTitle: "📱 派車任務卡片清單",
+        callDriverBtn: "📞 撥打司機電話",
+        noPhoneBtn: "📵 無司機電話",
+        copyNoticeBtn: "📋 複製派車資訊",
+        copiedSuccessBtn: "✅ 已複製通知！",
+        plateLabel: "車牌",
         ganttTitle: "📊 每日司機 / 車輛派車甘特圖 (05:00 – 23:00)",
         ganttSubtitle: "依日期獨立分組顯示時間軸，避免跨日行程重疊；條狀長度依起訖點自動估算車程，滑鼠懸停可看完整資訊",
         legendAirport: "機場接送",
@@ -249,7 +271,12 @@
         tipRoute: "行程地點",
         tipDriver: "司機資訊",
         notFilled: "未填寫",
-        showingRows: (n) => `共 ${n} 筆行程`
+        showingRows: (n) => `共 ${n} 筆行程`,
+        copyHeader: "【METC / MECL 派車接送通知】",
+        copyFlight: "航班資訊",
+        copyDriverName: "司機姓名",
+        copyPlate: "車牌號碼",
+        copyPhone: "聯絡電話"
       },
       en: {
         title: "🚐 Vehicle Dispatch & Gantt Dashboard",
@@ -272,6 +299,12 @@
         kpiPaxLabel: "Total Passengers (Pax)",
         kpiPendingLabel: "Pending (Not OK)",
         kpiCostLabel: "Est. Cost (THB)",
+        mobileListTitle: "📱 Mobile Dispatch Cards",
+        callDriverBtn: "📞 Call Driver",
+        noPhoneBtn: "📵 No Phone",
+        copyNoticeBtn: "📋 Copy Info",
+        copiedSuccessBtn: "✅ Copied!",
+        plateLabel: "Plate",
         ganttTitle: "📊 Daily Driver / Vehicle Dispatch Gantt Chart (05:00 – 23:00)",
         ganttSubtitle: "Grouped by date to prevent cross-day overlap. Duration auto-estimated by route; hover for full details.",
         legendAirport: "Airport Transfer",
@@ -303,7 +336,12 @@
         tipRoute: "Route",
         tipDriver: "Driver Info",
         notFilled: "N/A",
-        showingRows: (n) => `${n} trips`
+        showingRows: (n) => `${n} trips`,
+        copyHeader: "[METC / MECL Shuttle Dispatch Notice]",
+        copyFlight: "Flight",
+        copyDriverName: "Driver",
+        copyPlate: "License Plate",
+        copyPhone: "Phone"
       },
       th: {
         title: "🚐 แดชบอร์ดติดตามการจองรถและตาราง Gantt",
@@ -326,6 +364,12 @@
         kpiPaxLabel: "จำนวนผู้โดยสารรวม (Pax)",
         kpiPendingLabel: "รอยืนยัน (ไม่ใช่ OK)",
         kpiCostLabel: "ค่าเดินทางโดยประมาณ (THB)",
+        mobileListTitle: "📱 รายการรถรับ-ส่ง (มุมมองมือถือ)",
+        callDriverBtn: "📞 โทรหาคนขับ",
+        noPhoneBtn: "📵 ไม่มีเบอร์โทร",
+        copyNoticeBtn: "📋 คัดลอกข้อมูล",
+        copiedSuccessBtn: "✅ คัดลอกแล้ว!",
+        plateLabel: "ทะเบียน",
         ganttTitle: "📊 ตาราง Gantt การจัดรถและคนขับรายวัน (05:00 – 23:00)",
         ganttSubtitle: "แยกกลุ่มตามวันที่เพื่อไม่ให้เวลาทับซ้อนกัน วางเมาส์บนแถบเพื่อดูรายละเอียดทั้งหมด",
         legendAirport: "รับ-ส่งสนามบิน",
@@ -357,7 +401,12 @@
         tipRoute: "เส้นทาง",
         tipDriver: "ข้อมูลคนขับ",
         notFilled: "ไม่ระบุ",
-        showingRows: (n) => `ทั้งหมด ${n} รายการ`
+        showingRows: (n) => `ทั้งหมด ${n} รายการ`,
+        copyHeader: "[แจ้งรายละเอียดรถรับ-ส่ง METC / MECL]",
+        copyFlight: "เที่ยวบิน",
+        copyDriverName: "คนขับ",
+        copyPlate: "ทะเบียนรถ",
+        copyPhone: "เบอร์โทร"
       }
     };
 
@@ -365,6 +414,7 @@
     let viewMode = "DAY"; // 'DAY' | 'WEEK' | 'MONTH'
     let lastSyncMeta = null;
     let allRecords = [];
+    let currentFilteredRecords = [];
     const START_HOUR = 5;
     const END_HOUR = 23;
     const TOTAL_HOURS = END_HOUR - START_HOUR;
@@ -387,6 +437,78 @@
       document.getElementById("clearSearchBtn").classList.add("hidden");
       input.focus();
       renderDashboard();
+    }
+
+    // 解析 driverInfo 裡的車牌、電話、司機姓名（供手機卡片與一鍵撥號/複製使用）
+    function extractDriverDetails(trip) {
+      const info = trip.driverInfo || "";
+      const plateMatch = info.match(/License\s*plate\s*:\s*([^\n\r]+)/i);
+      const telMatch = info.match(/(?:Tel|Phone\s*Number|Phone)\s*:\s*([^\n\r]+)/i);
+      const driverMatch = info.match(/(?:Driver|Name)\s*:\s*([^\n\r(Tel)]+)/i);
+
+      let phoneRaw = telMatch ? telMatch[1].trim() : "";
+      if (!phoneRaw) {
+        // 備援：從整段文字抓泰國手機格式 (06x / 08x / 09x)
+        const fallbackPhone = info.match(/\b0[689]\d(?:[- ]?\d){7,8}\b/);
+        if (fallbackPhone) phoneRaw = fallbackPhone[0].trim();
+      }
+      const phoneDial = phoneRaw.replace(/[^\d+]/g, "");
+
+      return {
+        plate: plateMatch ? plateMatch[1].trim() : "",
+        phoneDisplay: phoneRaw,
+        phoneDial: phoneDial.length >= 9 ? phoneDial : "",
+        driver: (trip.driverName || (driverMatch ? driverMatch[1].trim() : "")).trim()
+      };
+    }
+
+    // 一鍵複製單筆派車資訊（供手機版發送群組通知）
+    async function copyTripNotice(index, btnEl) {
+      const trip = currentFilteredRecords[index];
+      if (!trip) return;
+      const dict = I18N[currentLang];
+      const details = extractDriverDetails(trip);
+
+      const cleanName = (trip.name || dict.notFilled).replace(/\r?\n+/g, "、").trim();
+      const cleanFlight = (trip.flight || "-").replace(/\r?\n+/g, " ").trim();
+      const cleanFrom = (trip.from || "").replace(/\r?\n+/g, " ").trim();
+      const cleanTo = (trip.to || "").replace(/\r?\n+/g, " ").trim();
+
+      const lines = [
+        dict.copyHeader,
+        `📅 ${dict.tipDate}：${trip.date}${trip.day ? ` (${trip.day})` : ""} ${trip.pickupTime}`,
+        `✈️ ${dict.copyFlight}：${cleanFlight}`,
+        `👤 ${dict.tipName}：${cleanName} (${dict.paxUnit(trip.pax || 0)})`,
+        `📍 ${dict.tipRoute}：${cleanFrom} → ${cleanTo}`,
+        `🚘 ${dict.copyDriverName}：${details.driver || dict.unassigned}`,
+        details.plate ? `🔢 ${dict.copyPlate}：${details.plate}` : "",
+        details.phoneDisplay ? `📞 ${dict.copyPhone}：${details.phoneDisplay}` : ""
+      ].filter(Boolean);
+
+      const textToCopy = lines.join("\n");
+
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+      } catch (e) {
+        const ta = document.createElement("textarea");
+        ta.value = textToCopy;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+
+      if (btnEl) {
+        const originalHtml = btnEl.innerHTML;
+        btnEl.innerHTML = dict.copiedSuccessBtn;
+        btnEl.classList.remove("bg-slate-100", "text-slate-700");
+        btnEl.classList.add("bg-emerald-600", "text-white");
+        setTimeout(() => {
+          btnEl.innerHTML = dict.copyNoticeBtn;
+          btnEl.classList.remove("bg-emerald-600", "text-white");
+          btnEl.classList.add("bg-slate-100", "text-slate-700");
+        }, 1800);
+      }
     }
 
     // 解析 "2-Nov-26" 或 "15/11/2026" 為標準 Date 物件
@@ -671,18 +793,142 @@
         return true;
       });
 
+      currentFilteredRecords = filtered;
+
       const validTrips = filtered.filter(r => !r.isCancelled);
       document.getElementById("kpiTrips").textContent = validTrips.length;
       document.getElementById("kpiPax").textContent = validTrips.reduce((sum, r) => sum + (r.pax || 0), 0);
       document.getElementById("kpiPending").textContent = validTrips.filter(r => (r.check || "").toUpperCase() !== "OK").length;
       document.getElementById("kpiCost").textContent = validTrips.reduce((sum, r) => sum + (r.cost || 0), 0).toLocaleString();
-      document.getElementById("tableCountBadge").textContent = dict.showingRows(filtered.length);
 
+      const countText = dict.showingRows(filtered.length);
+      document.getElementById("tableCountBadge").textContent = countText;
+      document.getElementById("mobileCountBadge").textContent = countText;
+
+      renderMobileCards(filtered);
       renderGanttByDate(filtered);
       renderTable(filtered);
     }
 
-    // 依「日期」分組渲染甘特圖，確保每一天擁有獨立的時間軸，不會把不同日期擠在一起
+    // 渲染手機版垂直派車卡片（含車牌徽章、一鍵撥號、一鍵複製）
+    function renderMobileCards(records) {
+      const dict = I18N[currentLang];
+      const container = document.getElementById("mobileCardsContainer");
+      container.innerHTML = "";
+
+      if (records.length === 0) {
+        container.innerHTML = `<div class="bg-white rounded-xl border border-slate-200 p-8 text-center text-xs text-slate-400">${dict.noData}</div>`;
+        return;
+      }
+
+      // 依日期分組建立卡片區塊
+      const dateGroups = new Map();
+      records.forEach((rec, idx) => {
+        const dKey = rec.date || "未標註日期";
+        if (!dateGroups.has(dKey)) dateGroups.set(dKey, []);
+        dateGroups.get(dKey).push({ rec, idx });
+      });
+
+      dateGroups.forEach((items, dateStr) => {
+        const dayLabel = items[0]?.rec?.day ? ` (${items[0].rec.day})` : "";
+        const groupWrapper = document.createElement("div");
+        groupWrapper.className = "space-y-2.5";
+
+        // 日期分組標題列
+        const dateBanner = document.createElement("div");
+        dateBanner.className = "flex items-center justify-between px-3 py-1.5 rounded-lg bg-slate-200/70 text-xs font-bold text-slate-700";
+        dateBanner.innerHTML = `
+          <span>📅 ${dateStr}${dayLabel}</span>
+          <span class="text-[11px] font-medium text-slate-500">${dict.tripCount(items.length)}</span>
+        `;
+        groupWrapper.appendChild(dateBanner);
+
+        items.forEach(({ rec, idx }) => {
+          const isOk = (rec.check || "").toUpperCase() === "OK";
+          const comp = resolveCompany(rec);
+          const proj = (rec.project || "").trim();
+          const details = extractDriverDetails(rec);
+
+          // 卡片左側狀態色條
+          let borderAccent = "border-l-4 border-l-blue-500";
+          if (!isOk) borderAccent = "border-l-4 border-l-amber-500";
+          if (rec.isCancelled) borderAccent = "border-l-4 border-l-slate-400 opacity-65";
+
+          const statusBadgeHtml = rec.isCancelled
+            ? `<span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[11px] font-bold">CANCEL</span>`
+            : isOk
+              ? `<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-bold">OK</span>`
+              : `<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[11px] font-bold">${rec.check || dict.pendingBadge}</span>`;
+
+          const card = document.createElement("div");
+          card.className = `bg-white rounded-xl border border-slate-200 shadow-sm p-3.5 space-y-3 ${borderAccent}`;
+
+          card.innerHTML = `
+            <!-- 頂部：時間 + 航班 + 狀態 + 車牌 -->
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-lg font-extrabold text-blue-600 leading-none">${rec.pickupTime || "--:--"}</span>
+                ${rec.flight ? `<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-xs">✈️ ${rec.flight.replace(/\r?\n+/g, " ")}</span>` : ""}
+                ${statusBadgeHtml}
+              </div>
+              ${details.plate
+                ? `<span class="px-2 py-0.5 rounded-md bg-slate-800 text-white text-[11px] font-bold tracking-wide shrink-0">🚘 ${details.plate}</span>`
+                : ""}
+            </div>
+
+            <!-- 路線區塊 -->
+            <div class="bg-slate-50 rounded-lg p-2.5 border border-slate-100 text-xs space-y-1">
+              <div class="flex items-start gap-1.5">
+                <span class="text-emerald-600 font-bold shrink-0">●</span>
+                <span class="font-medium text-slate-800 break-words">${(rec.from || "-").replace(/\r?\n+/g, " ")}</span>
+              </div>
+              <div class="flex items-start gap-1.5">
+                <span class="text-rose-500 font-bold shrink-0">▼</span>
+                <span class="font-bold text-slate-900 break-words">${(rec.to || "-").replace(/\r?\n+/g, " ")}</span>
+              </div>
+            </div>
+
+            <!-- 乘客與公司標籤 -->
+            <div class="flex items-start justify-between gap-2 text-xs">
+              <div class="space-y-0.5">
+                <div class="text-[11px] text-slate-400">${dict.thName} (${dict.paxUnit(rec.pax || 0)})</div>
+                <div class="font-semibold text-slate-800 whitespace-pre-line">${rec.name || dict.notFilled}</div>
+              </div>
+              <div class="flex flex-col items-end gap-1 shrink-0">
+                ${comp ? `<span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold text-[11px]">${comp}</span>` : ""}
+                ${proj ? `<span class="text-[11px] text-slate-500 font-medium">${proj}</span>` : ""}
+              </div>
+            </div>
+
+            <!-- 司機資訊摘要 -->
+            <div class="pt-2 border-t border-slate-100 text-xs space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-700">🧑‍✈️ ${details.driver || dict.unassigned}</span>
+                ${details.phoneDisplay ? `<span class="text-slate-500 font-mono text-[11px]">${details.phoneDisplay}</span>` : ""}
+              </div>
+              ${rec.driverInfo ? `<p class="text-[11px] text-slate-500 leading-relaxed whitespace-pre-line">${rec.driverInfo.trim()}</p>` : ""}
+            </div>
+
+            <!-- 底部雙按鈕：一鍵撥號 + 一鍵複製通知 -->
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              ${details.phoneDial
+                ? `<a href="tel:${details.phoneDial}" class="flex items-center justify-center gap-1 py-2 px-3 rounded-lg bg-blue-600 active:bg-blue-700 text-white text-xs font-bold shadow-sm transition text-center">${dict.callDriverBtn}</a>`
+                : `<button type="button" disabled class="flex items-center justify-center gap-1 py-2 px-3 rounded-lg bg-slate-100 text-slate-400 text-xs font-medium cursor-not-allowed">${dict.noPhoneBtn}</button>`
+              }
+              <button type="button" onclick="copyTripNotice(${idx}, this)" class="flex items-center justify-center gap-1 py-2 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 text-xs font-bold transition cursor-pointer">
+                ${dict.copyNoticeBtn}
+              </button>
+            </div>
+          `;
+
+          groupWrapper.appendChild(card);
+        });
+
+        container.appendChild(groupWrapper);
+      });
+    }
+
+    // 依「日期」分組渲染電腦版甘特圖，確保每一天擁有獨立的時間軸，不會把不同日期擠在一起
     function renderGanttByDate(records) {
       const dict = I18N[currentLang];
       const ganttBody = document.getElementById("ganttBody");
