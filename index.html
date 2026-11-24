@@ -549,24 +549,18 @@
       const nameSep = currentLang === "en" ? ", " : "、";
 
       const line1 = `${dict.tipDate}：${trip.date} ${trip.pickupTime}${trip.day ? sep + trip.day : ""}`;
-      const cleanName = (trip.name || dict.notFilled).replace(/?
-+/g, nameSep).trim();
+      const cleanName = (trip.name || dict.notFilled).replace(/\r?\n+/g, nameSep).trim();
       const line2 = `${dict.tipName}：${cleanName}`;
 
-      const fromParts = (trip.from || "").split(/?
-+/).map(s => s.trim()).filter(Boolean);
-      const toParts = (trip.to || "").split(/?
-+/).map(s => s.trim()).filter(Boolean);
+      const fromParts = (trip.from || "").split(/\r?\n+/).map(s => s.trim()).filter(Boolean);
+      const toParts = (trip.to || "").split(/\r?\n+/).map(s => s.trim()).filter(Boolean);
       const routeStr = [...fromParts, ...toParts].join(" > ");
       const line3 = `${dict.tipRoute}：${routeStr || dict.notFilled}`;
 
       const info = trip.driverInfo || "";
-      const plateMatch = info.match(/License plate:\s*([^
-]+)/i);
-      const telMatch = info.match(/Tel:\s*([^
-]+)/i);
-      const driverMatch = info.match(/Driver:\s*([^
-(Tel)]+)/i);
+      const plateMatch = info.match(/License plate:\s*([^\n\r]+)/i);
+      const telMatch = info.match(/Tel:\s*([^\n\r]+)/i);
+      const driverMatch = info.match(/Driver:\s*([^\n\r(Tel)]+)/i);
 
       const plate = plateMatch ? plateMatch[1].trim() : "";
       const tel = telMatch ? telMatch[1].trim() : "";
@@ -574,15 +568,11 @@
 
       let driverSummary = [plate, tel, driver].filter(Boolean).join(sep);
       if (!driverSummary) {
-        driverSummary = info.replace(/?
-+/g, sep).trim() || dict.unassigned;
+        driverSummary = info.replace(/\r?\n+/g, sep).trim() || dict.unassigned;
       }
       const line4 = `${dict.tipDriver}：${driverSummary}`;
 
-      return `${line1}
-${line2}
-${line3}
-${line4}`;
+      return `${line1}\n${line2}\n${line3}\n${line4}`;
     }
 
     // 自動從欄位或專案名稱補抓公司別（若原欄位空白，嘗試從文字推斷 METC / MECL）
